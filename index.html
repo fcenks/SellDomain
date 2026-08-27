@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>优质域名出售 | Premium Domains For Sale</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#165DFF',
+                        dark: '#0F172A',
+                    }
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+      .card-shadow { box-shadow: 0 4px 20px rgba(22,93,255,0.12); }
+    }
+  </style>
+</head>
+
+<body class="bg-slate-50 dark:bg-dark text-slate-800 dark:text-slate-100 min-h-screen">
+    <div class="max-w-6xl mx-auto px-4 py-10">
+        <header class="text-center mb-12">
+            <div class="flex justify-end mb-4">
+                <button id="langToggle"
+                    class="px-4 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition">
+                    English
+                </button>
+            </div>
+            <h1 id="pageTitle" class="text-[clamp(2rem,5vw,3rem)] font-bold text-primary mb-3">优质域名出售</h1>
+            <p id="pageDesc" class="text-slate-500 dark:text-slate-400">高品相精品域名，欢迎询价议价</p>
+            <div id="globalContact" class="my-4 text-slate-600 dark:text-slate-300"></div>
+            <div class="mt-6 max-w-md mx-auto">
+                <input id="searchInput" type="text" placeholder="输入域名搜索..."
+                    class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 outline-primary transition">
+            </div>
+        </header>
+
+        <div class="flex items-center justify-between mb-6">
+            <div><span id="totalText">共</span> <span id="totalCount" class="text-primary font-semibold">0</span> <span
+                    id="domainText">个待售域名</span></div>
+            <select id="sortSelect"
+                class="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
+                <option value="default">默认排序</option>
+                <option value="priceAsc">价格从低到高</option>
+                <option value="priceDesc">价格从高到低</option>
+            </select>
+        </div>
+
+        <div id="domainList" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            <div class="col-span-full text-center py-20 text-slate-400">
+                <i class="fa fa-spinner fa-spin text-3xl"></i>
+                <p id="loadingText" class="mt-2">正在加载域名列表...</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal" class="fixed inset-0 bg-black/60 hidden items-center justify-center z-50 px-4">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl p-6 max-w-md w-full card-shadow">
+            <h3 class="text-xl font-bold mb-2" id="modalDomain"></h3>
+            <p id="modalTip" class="text-slate-500 dark:text-slate-400 mb-4">意向购买可联系询价议价</p>
+            <div class="space-y-3 mb-6">
+                <div class="flex"><span class="w-24 text-slate-400" id="statusLabel">状态：</span><span
+                        id="modalStatus"></span></div>
+                <div class="flex"><span class="w-24 text-slate-400" id="priceLabel">报价：</span><span
+                        id="modalPrice"></span></div>
+                <div class="flex"><span class="w-24 text-slate-400" id="expireLabel">到期：</span><span
+                        id="modalExpire"></span></div>
+                <div class="flex"><span class="w-24 text-slate-400" id="noteLabel">备注：</span><span
+                        id="modalNote"></span></div>
+            </div>
+            <div class="flex gap-3">
+                <a href="mailto:samstke@gmail.com" id="inquiryBtn"
+                    class="flex-1 text-center bg-primary text-white py-3 rounded-xl hover:bg-primary/90 transition">邮箱询价</a>
+                <button id="closeBtn" onclick="closeModal()"
+                    class="flex-1 border border-slate-200 dark:border-slate-600 py-3 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 transition">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============ 【域名数据，新增 expire 字段，permanent=永久】 ============
+        const allDomains = [
+            { "domain": "fjuca.com", "price": "10000", "note": "", "onSale": true, "expire": "permanent" },
+            { "domain": "fcenks.com", "price": "1000", "note": "", "onSale": false, "expire": "2028-12-31" },
+            { "domain": "thinkact.cn", "price": "5000", "note": "", "onSale": false, "expire": "2028-12-31" },
+            { "domain": "thinkact.cc", "price": "1000", "note": "", "onSale": true, "expire": "2028-12-31" },
+            { "domain": "cdnw.com.cn", "price": "1000", "note": "", "onSale": true, "expire": "2028-12-31" },
+            { "domain": "thinkact.cc.cd", "price": "100", "note": "", "onSale": true, "expire": "permanent" },
+            { "domain": "fcenks.cc.cd", "price": "100", "note": "", "onSale": true, "expire": "permanent" },
+            { "domain": "samstke.cc.cd", "price": "100", "note": "", "onSale": true, "expire": "permanent" },
+            { "domain": "thinkact.bot.cd", "price": "199", "note": "可永久", "onSale": true, "expire": "2027-08-19" },
+        ];
+        // 联系方式
+        const contactZh = "📩 联系邮箱：samstke@gmail.com | 💬 微信：samstke";
+        const contactEn = "📩 Email: samstke@gmail.com | 💬 WeChat: samstke";
+        // ======================================================
+
+        const i18n = {
+            zh: {
+                toggle: "English",
+                pageTitle: "优质域名出售",
+                pageDesc: "高品相精品域名，欢迎询价议价",
+                searchPlaceholder: "输入域名搜索...",
+                totalText: "共",
+                domainText: "个待售域名",
+                loadingText: "正在加载域名列表...",
+                noResult: "没有匹配域名",
+                loadFail: "域名数据加载失败，请检查仓库配置",
+                modalTip: "意向购买可联系询价议价",
+                statusLabel: "状态：",
+                priceLabel: "报价：",
+                expireLabel: "到期：",
+                noteLabel: "备注：",
+                inquiryBtn: "邮箱询价",
+                closeBtn: "关闭",
+                sortDefault: "默认排序",
+                sortAsc: "价格从低到高",
+                sortDesc: "价格从高到低",
+                onSale: "可出售",
+                sold: "已售出",
+                permanent: "永久"
+            },
+            en: {
+                toggle: "中文",
+                pageTitle: "Premium Domains For Sale",
+                pageDesc: "High-quality premium domains, welcome to inquire",
+                searchPlaceholder: "Search domain...",
+                totalText: "Total",
+                domainText: "domains available",
+                loadingText: "Loading domain list...",
+                noResult: "No matching domains",
+                loadFail: "Failed to load domain data",
+                modalTip: "Contact us for purchase & negotiation",
+                statusLabel: "Status:",
+                priceLabel: "Price:",
+                expireLabel: "Expire:",
+                noteLabel: "Note:",
+                inquiryBtn: "Email Inquiry",
+                closeBtn: "Close",
+                sortDefault: "Default",
+                sortAsc: "Price Low to High",
+                sortDesc: "Price High to Low",
+                onSale: "For Sale",
+                sold: "Sold",
+                permanent: "Permanent"
+            }
+        };
+
+        let lang = localStorage.getItem("lang") || "zh";
+        const listEl = document.getElementById("domainList");
+        const countEl = document.getElementById("totalCount");
+        const searchEl = document.getElementById("searchInput");
+        const sortEl = document.getElementById("sortSelect");
+        const langToggle = document.getElementById("langToggle");
+        const globalContactEl = document.getElementById("globalContact");
+
+        function applyLang() {
+            const t = i18n[lang];
+            langToggle.innerText = t.toggle;
+            document.getElementById("pageTitle").innerText = t.pageTitle;
+            document.getElementById("pageDesc").innerText = t.pageDesc;
+            globalContactEl.innerText = lang === "zh" ? contactZh : contactEn;
+            searchEl.placeholder = t.searchPlaceholder;
+            document.getElementById("totalText").innerText = t.totalText;
+            document.getElementById("domainText").innerText = t.domainText;
+            document.getElementById("loadingText").innerText = t.loadingText;
+            document.getElementById("modalTip").innerText = t.modalTip;
+            document.getElementById("statusLabel").innerText = t.statusLabel;
+            document.getElementById("priceLabel").innerText = t.priceLabel;
+            document.getElementById("expireLabel").innerText = t.expireLabel;
+            document.getElementById("noteLabel").innerText = t.noteLabel;
+            document.getElementById("inquiryBtn").innerText = t.inquiryBtn;
+            document.getElementById("closeBtn").innerText = t.closeBtn;
+            sortEl.options[0].text = t.sortDefault;
+            sortEl.options[1].text = t.sortAsc;
+            sortEl.options[2].text = t.sortDesc;
+            document.documentElement.lang = lang;
+            renderList();
+        }
+
+        langToggle.onclick = () => {
+            lang = lang === "zh" ? "en" : "zh";
+            localStorage.setItem("lang", lang);
+            applyLang();
+        };
+
+        function renderList() {
+            const t = i18n[lang];
+            const keyword = searchEl.value.trim().toLowerCase();
+            let data = allDomains.filter(item => item.domain.toLowerCase().includes(keyword));
+            if (sortEl.value === "priceAsc") {
+                data.sort((a, b) => Number(a.price) - Number(b.price));
+            } else if (sortEl.value === "priceDesc") {
+                data.sort((a, b) => Number(b.price) - Number(a.price));
+            }
+            countEl.textContent = data.length;
+            if (data.length === 0) {
+                listEl.innerHTML = `<div class="col-span-full text-center py-20 text-slate-400"><p>${t.noResult}</p></div>`;
+                return;
+            }
+            listEl.innerHTML = data.map(item => {
+                const isOnSale = item.onSale !== false;
+                const statusText = isOnSale ? t.onSale : t.sold;
+                const statusClass = isOnSale ? "text-green-500" : "text-red-500";
+                const priceText = `${lang === 'zh' ? '¥' : '$'}${item.price}`;
+                const expireText = item.expire === "permanent" ? t.permanent : item.expire;
+                const noteText = item.note || (lang === 'zh' ? '无备注' : 'No note');
+                const btnHtml = isOnSale
+                    ? `<button onclick="openModal('${item.domain}', '${item.price}', '${item.expire || ''}', '${item.note || ''}', ${isOnSale})" class="w-full py-2.5 border border-primary text-primary rounded-lg hover:bg-primary hover:text-white transition">${t.inquiryBtn}</button>`
+                    : `<div class="w-full py-2.5 border border-gray-400 text-gray-400 rounded-lg text-center">${t.sold}</div>`;
+                return `
+        <div class="bg-white dark:bg-slate-800 rounded-xl p-5 card-shadow hover:shadow-lg transition">
+          <h3 class="text-xl font-bold text-primary mb-1">${item.domain}</h3>
+          <div class="${statusClass} text-sm font-medium mb-1">${statusText}</div>
+          <p class="text-2xl font-semibold my-2">${priceText}</p>
+          <p class="text-sm text-slate-500 dark:text-slate-400 mb-1">${t.expireLabel} ${expireText}</p>
+          <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">${noteText}</p>
+          ${btnHtml}
+        </div>
+        `;
+            }).join("");
+        }
+
+        function openModal(domain, price, expire, note, onSale) {
+            const t = i18n[lang];
+            const expireText = expire === "permanent" ? t.permanent : expire;
+            document.getElementById("modalDomain").innerText = domain;
+            document.getElementById("modalStatus").innerText = onSale ? t.onSale : t.sold;
+            document.getElementById("modalPrice").innerText = `${lang === 'zh' ? '¥' : '$'}${price}`;
+            document.getElementById("modalExpire").innerText = expireText;
+            document.getElementById("modalNote").innerText = note || (lang === 'zh' ? '无' : 'No note');
+            document.getElementById("modal").classList.remove("hidden");
+            document.getElementById("modal").classList.add("flex");
+        }
+        function closeModal() {
+            document.getElementById("modal").classList.add("hidden");
+            document.getElementById("modal").classList.remove("flex");
+        }
+        document.getElementById("modal").addEventListener("click", (e) => {
+            if (e.target.id === "modal") closeModal();
+        })
+
+        searchEl.addEventListener("input", renderList);
+        sortEl.addEventListener("change", renderList);
+        applyLang();
+    </script>
+</body>
+
+</html>

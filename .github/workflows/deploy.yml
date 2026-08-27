@@ -1,0 +1,34 @@
+name: Auto Deploy to CF Pages + Ali ESA + Tencent EO
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Deploy Cloudflare Pages
+        uses: cloudflare/pages-action@v1
+        with:
+          apiToken: ${{ secrets.CF_PAGES_API_TOKEN }}
+          accountId: ${{ secrets.CF_PAGES_ACCOUNT_ID }}
+          projectName: 你的cf-pages项目名
+          directory: ./
+          branch: main
+
+      - name: Deploy Aliyun ESA
+        uses: aliyun/esa-pages-action@main
+        with:
+          token: ${{ secrets.ESA_TOKEN }}
+          site: 你的esa站点id
+          dir: ./
+
+      - name: Deploy Tencent EdgeOne Pages
+        uses: TencentCloud/edgeone-pages-action@v1
+        with:
+          token: ${{ secrets.EO_TOKEN }}
+          project: 你的eo项目id
+          folder: ./
