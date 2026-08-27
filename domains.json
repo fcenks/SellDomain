@@ -1,5 +1,9 @@
 [
-  {"domain":"example.com","price":"8888","note":"适合品牌项目","onSale":true},
-  {"domain":"demo.cn","price":"2999","note":"短好记","onSale":false},
-  {"domain":"test.io","price":"5500","note":"技术向域名"}
+  {"domain":"fjuca.com","price":"带价咨询","note":"","onSale":true},
+  {"domain":"cdnw.com.cn","price":"带价咨询","note":"","onSale":true},
+  {"domain":"thinkact.cc","price":"带价咨询","note":"","onSale":true},
+  {"domain":"thinkact.cn","price":"带价咨询","note":"","onSale":true},
+  {"domain":"thinkact.cc.cd","price":"带价咨询","note":"","onSale":true},
+  {"domain":"fcenks.cc.cd","price":"带价咨询","note":"","onSale":true},
+  {"domain":"samstke.cc.cd","price":"带价咨询","note":"","onSale":true},
 ]
