@@ -47,5 +47,13 @@ export const updateDomain = (domain, data) =>
 export const removeDomain = (domain) =>
   request(`/domains/${encodeURIComponent(domain)}`, { method: 'DELETE', headers: authHeaders() })
 
+// 保存后台调整后的域名展示顺序，names 为域名数组（新顺序）
+export const reorderDomains = (names) =>
+  request('/domains/reorder', {
+    method: 'PUT',
+    headers: authHeaders(),
+    body: JSON.stringify({ domains: names })
+  })
+
 export const saveConfig = (config) =>
   request('/config', { method: 'PUT', headers: authHeaders(), body: JSON.stringify(config) })

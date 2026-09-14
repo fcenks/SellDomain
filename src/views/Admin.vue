@@ -6,6 +6,7 @@ import {
   createDomain,
   updateDomain,
   removeDomain,
+  reorderDomains,
   saveConfig,
   getToken,
   setToken,
@@ -217,6 +218,78 @@ const STATUS_TEXT = { available: '可购买', reserved: '已预留', sold: '已�
 const priceText = (p) => (typeof p === 'number' && p > 0 ? '¥' + p.toLocaleString('zh-CN') : '面议')
 const expireText = (d) => (d ? d + ' 到期' : '永久')
 
+// ---- 排序：拖拽 + 上移/下移，调整后持久化到 KV（首页默认按此顺序展示）----
+const dragIndex = ref(null)
+const reordering = ref(false)
+let dragSnapshot = null
+let dragDropped = false
+
+function onDragStart(i) {
+  dragIndex.value = i
+  dragSnapshot = domains.value.map((d) => d.domain)
+  dragDropped = false
+}
+
+function onDragOver(e, i) {
+  e.preventDefault()
+  if (dragIndex.value === null || dragIndex.value === i) return
+  const list = domains.value
+  const moved = list.splice(dragIndex.value, 1)[0]
+  list.splice(i, 0, moved)
+  dragIndex.value = i
+}
+
+function onDrop(e) {
+  e.preventDefault()
+  dragDropped = true
+}
+
+function onDragEnd() {
+  const names = domains.value.map((d) => d.domain)
+  if (!dragDropped) {
+    // 拖拽被取消（如 ESC 或移出列表），恢复开始前的顺序
+    if (dragSnapshot) {
+      const map = new Map(domains.value.map((d) => [d.domain, d]))
+      domains.value = dragSnapshot.map((n) => map.get(n))
+    }
+  } else if (dragSnapshot && dragSnapshot.join('|') !== names.join('|')) {
+    persistOrder()
+  }
+  dragIndex.value = null
+  dragSnapshot = null
+  dragDropped = false
+}
+
+function moveRow(i, delta) {
+  const target = i + delta
+  if (target < 0 || target >= domains.value.length) return
+  const list = domains.value
+  ;[list[i], list[target]] = [list[target], list[i]]
+  persistOrder()
+}
+
+// 排序保存必须防抖合并：连续点击/拖动会产生多次变更，
+// 而 KV 对同一个 key 的并发写入无法保证先后，必须只提交最终顺序
+let orderTimer = null
+function persistOrder() {
+  const names = domains.value.map((d) => d.domain)
+  reordering.value = true
+  error.value = ''
+  if (orderTimer) clearTimeout(orderTimer)
+  orderTimer = setTimeout(async () => {
+    orderTimer = null
+    try {
+      await reorderDomains(names)
+      flash('排序已保存')
+    } catch (e) {
+      error.value = '排序保存失败：' + e.message
+      await refreshDomains()
+    } finally {
+      reordering.value = false
+    }
+  }, 350)
+}
+
 // 页面加载时：本地有令牌也必须重新向服务端验证，防止错误/过期令牌直接进入
 onMounted(async () => {
   const token = getToken()
@@ -314,12 +387,17 @@ onMounted(async () => {
             <button class="btn btn-primary btn-sm" @click="openCreate">+ 新增域名</button>
           </div>
 
+          <p v-if="domains.length > 1" class="sort-tip">
+            拖动 <span class="drag-grip">⠿</span> 或点击 ↑↓ 调整顺序，顺序即首页"默认排序"的展示顺序，自动保存<span v-if="reordering">（保存中…）</span>
+          </p>
+
           <div v-if="!domains.length" class="empty">还没有域名，点击右上角新增。</div>
 
           <div v-else class="table-wrap">
             <table class="table">
               <thead>
                 <tr>
+                  <th class="col-sort">排序</th>
                   <th>域名</th>
                   <th>价格</th>
                   <th>状态</th>
@@ -330,7 +408,31 @@ onMounted(async () => {
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="d in domains" :key="d.domain">
+                <tr
+                  v-for="(d, i) in domains"
+                  :key="d.domain"
+                  class="domain-row"
+                  :class="{ dragging: dragIndex === i }"
+                  draggable="true"
+                  @dragstart="onDragStart(i)"
+                  @dragover="onDragOver($event, i)"
+                  @dragend="onDragEnd"
+                  @drop="onDrop"
+                >
+                  <td class="col-sort">
+                    <div class="sort-controls">
+                      <span class="drag-grip" title="按住拖动排序">⠿</span>
+                      <div class="sort-btns">
+                        <button class="icon-btn" title="上移" :disabled="i === 0" @click="moveRow(i, -1)">↑</button>
+                        <button
+                          class="icon-btn"
+                          title="下移"
+                          :disabled="i === domains.length - 1"
+                          @click="moveRow(i, 1)"
+                        >↓</button>
+                      </div>
+                    </div>
+                  </td>
                   <td class="mono">{{ d.domain }}</td>
                   <td>{{ priceText(d.price) }}</td>
                   <td>
@@ -600,6 +702,76 @@ code {
 .col-actions {
   display: flex;
   gap: 8px;
+}
+
+.sort-tip {
+  margin: -6px 0 14px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.col-sort {
+  width: 76px;
+}
+
+.sort-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.drag-grip {
+  cursor: grab;
+  color: var(--muted);
+  font-size: 15px;
+  letter-spacing: -2px;
+  user-select: none;
+}
+
+.drag-grip:active {
+  cursor: grabbing;
+}
+
+.sort-btns {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.icon-btn {
+  width: 22px;
+  height: 16px;
+  padding: 0;
+  line-height: 1;
+  font-size: 11px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.icon-btn:hover:not(:disabled) {
+  color: var(--text);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.icon-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.domain-row {
+  transition: background 0.12s ease;
+}
+
+.domain-row:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.domain-row.dragging {
+  opacity: 0.5;
+  background: rgba(109, 141, 255, 0.08);
 }
 
 /* modal */

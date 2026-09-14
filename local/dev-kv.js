@@ -94,6 +94,30 @@ export function createKvMiddleware(dataFile) {
         return send(res, 201, item)
       }
 
+      // ---- 批量排序（必须早于 [domain] 通配匹配）----
+      if (pathname === '/api/domains/reorder' && req.method === 'PUT') {
+        if (!isAdmin(req)) return send(res, 401, { error: '未授权' })
+        const body = await readBody(req)
+        const order = Array.isArray(body.domains)
+          ? body.domains.map((d) => String(d || '').trim().toLowerCase()).filter(Boolean)
+          : null
+        if (!order) return send(res, 400, { error: '参数错误：需要 domains 数组' })
+        const data = load()
+        if (order.length !== data.domains.length) {
+          return send(res, 400, { error: '排序列表与当前域名数量不一致' })
+        }
+        const map = new Map(data.domains.map((d) => [d.domain, d]))
+        if (order.some((name) => !map.has(name))) {
+          return send(res, 400, { error: '排序列表包含不存在的域名' })
+        }
+        if (new Set(order).size !== order.length) {
+          return send(res, 400, { error: '排序列表存在重复域名' })
+        }
+        data.domains = order.map((name) => map.get(name))
+        persist(data)
+        return send(res, 200, { ok: true })
+      }
+
       // ---- 单个域名 ----
       const itemMatch = pathname.match(/^\/api\/domains\/([^/]+)$/)
       if (itemMatch) {
