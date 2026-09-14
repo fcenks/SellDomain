@@ -9,11 +9,15 @@ import {
   saveConfig,
   getToken,
   setToken,
-  clearToken
+  clearToken,
+  verifyToken
 } from '../api.js'
 
-const authed = ref(Boolean(getToken()))
-const tokenInput = ref(getToken())
+// 初始不认定已登录，必须通过服务端令牌校验
+const authed = ref(false)
+const checking = ref(Boolean(getToken()))
+const loggingIn = ref(false)
+const tokenInput = ref('')
 const authError = ref('')
 
 const loading = ref(false)
@@ -30,21 +34,33 @@ const configForm = reactive({
   telegram: ''
 })
 
-// ---- 登录 ----
-function login() {
+// ---- 登录：先向服务端验证密码，验证通过才保存令牌并进入 ----
+async function login() {
   authError.value = ''
-  if (!tokenInput.value.trim()) {
+  const token = tokenInput.value.trim()
+  if (!token) {
     authError.value = '请输入管理密码'
     return
   }
-  setToken(tokenInput.value.trim())
-  authed.value = true
-  loadAll()
+  loggingIn.value = true
+  try {
+    const ok = await verifyToken(token)
+    if (!ok) {
+      authError.value = '管理密码错误，请重新输入'
+      return
+    }
+    setToken(token)
+    authed.value = true
+    await loadAll()
+  } finally {
+    loggingIn.value = false
+  }
 }
 
 function logout() {
   clearToken()
   authed.value = false
+  tokenInput.value = ''
   domains.value = []
 }
 
@@ -61,10 +77,11 @@ async function loadAll() {
     configForm.telegram = cfg.contact?.telegram || ''
     domains.value = list
   } catch (e) {
-    if (/401|未授权/.test(e.message)) {
+    if (/401|未授权|令牌/.test(e.message)) {
       authed.value = false
       clearToken()
-      authError.value = '密码无效，请重新输入'
+      tokenInput.value = ''
+      authError.value = '登录已失效，请重新输入密码'
     } else {
       error.value = e.message
     }
@@ -200,8 +217,22 @@ const STATUS_TEXT = { available: '可购买', reserved: '已预留', sold: '已�
 const priceText = (p) => (typeof p === 'number' && p > 0 ? '¥' + p.toLocaleString('zh-CN') : '面议')
 const expireText = (d) => (d ? d + ' 到期' : '永久')
 
-onMounted(() => {
-  if (authed.value) loadAll()
+// 页面加载时：本地有令牌也必须重新向服务端验证，防止错误/过期令牌直接进入
+onMounted(async () => {
+  const token = getToken()
+  if (!token) {
+    checking.value = false
+    return
+  }
+  const ok = await verifyToken(token)
+  checking.value = false
+  if (ok) {
+    authed.value = true
+    loadAll()
+  } else {
+    clearToken()
+    authError.value = '保存的密码已失效，请重新输入'
+  }
 })
 </script>
 
@@ -209,12 +240,24 @@ onMounted(() => {
   <div class="container admin">
     <h2 class="page-title">站点管理</h2>
 
+    <!-- 校验本地已保存的密码中 -->
+    <div v-if="checking" class="loading">正在验证登录状态…</div>
+
     <!-- 登录 -->
-    <div v-if="!authed" class="login-card">
+    <div v-else-if="!authed" class="login-card">
       <p class="login-desc">请输入管理密码</p>
       <div class="login-row">
-        <input v-model="tokenInput" class="input" type="password" placeholder="管理密码" @keyup.enter="login" />
-        <button class="btn btn-primary" @click="login">登录</button>
+        <input
+          v-model="tokenInput"
+          class="input"
+          type="password"
+          placeholder="管理密码"
+          :disabled="loggingIn"
+          @keyup.enter="login"
+        />
+        <button class="btn btn-primary" :disabled="loggingIn" @click="login">
+          {{ loggingIn ? '验证中…' : '登录' }}
+        </button>
       </div>
       <p v-if="authError" class="err">{{ authError }}</p>
     </div>

@@ -49,6 +49,12 @@ export function createKvMiddleware(dataFile) {
     if (!pathname.startsWith('/api/')) return next()
 
     try {
+      // ---- 管理令牌校验 ----
+      if (pathname === '/api/auth' && req.method === 'GET') {
+        if (!isAdmin(req)) return send(res, 401, { error: '管理令牌错误' })
+        return send(res, 200, { ok: true })
+      }
+
       // ---- 站点配置 ----
       if (pathname === '/api/config' && req.method === 'GET') {
         return send(res, 200, load().config)
