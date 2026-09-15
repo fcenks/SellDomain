@@ -3,7 +3,7 @@ import { getDomains, saveDomains, json, isAdmin } from '../../_lib/store.js'
 // 批量保存域名展示顺序：body { domains: ['a.com', 'b.com', ...] }，需与当前域名集合完全一致
 export async function onRequestPut(context) {
   const { request, env } = context
-  if (!isAdmin(request, env)) return json({ error: '未授权：管理令牌无效' }, 401)
+  if (!isAdmin(request, env)) return json({ error: '未授权：管理密码无效' }, 401)
 
   const body = await request.json().catch(() => ({}))
   const order = Array.isArray(body.domains)

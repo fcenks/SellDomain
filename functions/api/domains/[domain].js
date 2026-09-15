@@ -9,7 +9,7 @@ import {
 
 export async function onRequestPut(context) {
   const { request, env, params } = context
-  if (!isAdmin(request, env)) return json({ error: '未授权：管理令牌无效' }, 401)
+  if (!isAdmin(request, env)) return json({ error: '未授权：管理密码无效' }, 401)
 
   const name = decodeURIComponent(params.domain || '').toLowerCase()
   if (!DOMAIN_RE.test(name)) return json({ error: '域名格式不正确' }, 400)
@@ -27,7 +27,7 @@ export async function onRequestPut(context) {
 
 export async function onRequestDelete(context) {
   const { request, env, params } = context
-  if (!isAdmin(request, env)) return json({ error: '未授权：管理令牌无效' }, 401)
+  if (!isAdmin(request, env)) return json({ error: '未授权：管理密码无效' }, 401)
 
   const name = decodeURIComponent(params.domain || '').toLowerCase()
   const list = await getDomains(env)

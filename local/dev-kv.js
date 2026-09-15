@@ -49,9 +49,9 @@ export function createKvMiddleware(dataFile) {
     if (!pathname.startsWith('/api/')) return next()
 
     try {
-      // ---- 管理令牌校验 ----
+      // ---- 管理密码校验 ----
       if (pathname === '/api/auth' && req.method === 'GET') {
-        if (!isAdmin(req)) return send(res, 401, { error: '管理令牌错误' })
+        if (!isAdmin(req)) return send(res, 401, { error: '管理密码错误' })
         return send(res, 200, { ok: true })
       }
 
@@ -60,7 +60,7 @@ export function createKvMiddleware(dataFile) {
         return send(res, 200, load().config)
       }
       if (pathname === '/api/config' && req.method === 'PUT') {
-        if (!isAdmin(req)) return send(res, 401, { error: '未授权：管理令牌无效（本地默认令牌 dev-admin-token）' })
+        if (!isAdmin(req)) return send(res, 401, { error: '未授权：管理密码无效（本地默认密码 dev-admin-token）' })
         const data = load()
         data.config = normalizeConfig(await readBody(req))
         persist(data)
